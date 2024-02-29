@@ -3,9 +3,9 @@ import fs from 'fs'
 
 // Configure cloudinary
 cloudinary.config({ 
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME, 
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
+  cloud_name: process.env.COULDINARY_CLOUD_NAME, 
+  api_key: process.env.COULDINARY_API_KEY,
+  api_secret: process.env.COULDINARY_API_SECRET
 });
 
 const uploadToCloudinary = async (localFilePath) => {
