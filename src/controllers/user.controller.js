@@ -3,6 +3,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { User } from '../models/user.model.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
+import jwt from 'jsonwebtoken';
 
 // Generate access and refresh tokens with user Id
 const generateAccessAndRefereshTokens = async(userId) => {
@@ -96,7 +97,7 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const {userName, email, password} = req.body
 
-    if(!userName || !email){
+    if(!userName && !email){
         throw new ApiError(400, 'Please provide a username or email')
     }
 
@@ -111,7 +112,7 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'User not found')
     }
 
-    const isPasswordValid = await user.isPasswordCorrect(password)
+    const isPasswordValid = await user.verifyPassword(password)
 
     if(!isPasswordValid){
         throw new ApiError(401, 'Invalid credentials')
@@ -163,8 +164,48 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, 'User logged out successfully'))
 })
 
+const refreshToken = asyncHandler(async (req, res) => {
+    const incomingRreshToken = req.cookies.refreshToken || req.body.refreshToken
+
+    if(!incomingRreshToken){
+        throw new ApiError(401, 'Unauthorized')
+    }
+
+    try {
+        const decodedToken = jwt.verify(
+            incomingRreshToken,
+            process.env.REFRESH_TOKEN_SECRET,
+        )
+    
+        const user = await User.findById(decodedToken?._id)
+    
+        if(!user){
+            throw new ApiError(401, 'Invalid refresh token')
+        }
+    
+        if(user.refreshToken !== incomingRreshToken){
+            throw new ApiError(401, 'Refresh token is expired')
+        }
+    
+        const option = {
+            httpOnly: true,
+            secure: true
+        }
+    
+        const {accessToken, newRefreshToken} = await generateAccessAndRefereshTokens(user._id)
+    
+        return res.status(200)
+        .cookie('accessToken', accessToken, option)
+        .cookie('refreshToken', newRefreshToken, option)
+        .json(new ApiResponse(200, {accessToken, newRefreshToken}, 'Token refreshed successfully'))
+    } catch (error) {
+        throw new ApiError(401, error?.message || 'Unauthorized')
+    }
+})
+
 export { 
     registerUser,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshToken
 }
